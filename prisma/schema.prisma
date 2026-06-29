@@ -1,0 +1,464 @@
+// This is your Prisma schema file
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  SUBSCRIBER
+  FREE_USER
+}
+
+enum BookType {
+  DIGITAL
+  PHYSICAL
+  BOTH
+}
+
+enum BookAccess {
+  FREE
+  PREMIUM
+}
+
+enum FileType {
+  PDF
+  EPUB
+  AUDIO
+  IMAGE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  PAYSTACK
+  STRIPE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
+enum AdminActionType {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  SUSPEND
+  RESTORE
+}
+
+// ─── MODELS ──────────────────────────────────────────────────────────────────
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String
+  firstName         String
+  lastName          String
+  avatarUrl         String?
+  role              Role      @default(FREE_USER)
+  emailVerified     Boolean   @default(false)
+  emailVerifyToken  String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  phone             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  refreshTokens     RefreshToken[]
+  subscriptions     Subscription[]
+  orders            Order[]
+  readingProgress   ReadingProgress[]
+  bookmarks         Bookmark[]
+  addresses         Address[]
+  adminActions      AdminAction[]     @relation("AdminUser")
+  targetActions     AdminAction[]     @relation("TargetUser")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Series {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String
+  coverImage  String?
+  order       Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  books Book[]
+
+  @@map("series")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  icon        String?
+  color       String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  books BookCategory[]
+
+  @@map("categories")
+}
+
+model Book {
+  id               String     @id @default(cuid())
+  title            String
+  slug             String     @unique
+  description      String
+  shortDescription String?
+  author           String
+  illustrator      String?
+  coverImage       String
+  isbn             String?
+  publishedAt      DateTime?
+  ageMin           Int?
+  ageMax           Int?
+  pageCount        Int?
+  language         String     @default("en")
+  tags             String[]
+  bookType         BookType   @default(BOTH)
+  access           BookAccess @default(FREE)
+  price            Float?     // For physical copies
+  digitalPrice     Float?     // For one-time digital purchase
+  seriesId         String?
+  seriesOrder      Int?
+  featured         Boolean    @default(false)
+  newRelease       Boolean    @default(false)
+  popular          Boolean    @default(false)
+  published        Boolean    @default(true)
+  amazonLink       String?
+  selarLink        String?
+  okadaBooksLink   String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  // Relations
+  series          Series?         @relation(fields: [seriesId], references: [id])
+  categories      BookCategory[]
+  files           BookFile[]
+  physicalProduct PhysicalProduct?
+  readingProgress ReadingProgress[]
+  bookmarks       Bookmark[]
+  orderItems      OrderItem[]
+
+  @@map("books")
+}
+
+model BookCategory {
+  bookId     String
+  categoryId String
+
+  book     Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([bookId, categoryId])
+  @@map("book_categories")
+}
+
+model BookFile {
+  id         String   @id @default(cuid())
+  bookId     String
+  fileType   FileType
+  fileUrl    String
+  fileName   String
+  fileSize   Int?
+  duration   Int?     // For audio files in seconds
+  pageCount  Int?
+  isPreview  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@map("book_files")
+}
+
+model PhysicalProduct {
+  id               String   @id @default(cuid())
+  bookId           String   @unique
+  price            Float
+  stockCount       Int      @default(0)
+  weight           Float?   // in kg
+  dimensions       String?
+  shippingClass    String?
+  isAvailable      Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  book       Book        @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@map("physical_products")
+}
+
+model Address {
+  id           String   @id @default(cuid())
+  userId       String
+  fullName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  country      String   @default("NG")
+  postalCode   String?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@map("addresses")
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique @default(cuid())
+  userId          String
+  addressId       String?
+  status          OrderStatus @default(PENDING)
+  subtotal        Float
+  shippingFee     Float       @default(0)
+  discount        Float       @default(0)
+  total           Float
+  notes           String?
+  trackingNumber  String?
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id])
+  address   Address?   @relation(fields: [addressId], references: [id])
+  items     OrderItem[]
+  payment   Payment?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String  @id @default(cuid())
+  orderId           String
+  bookId            String
+  physicalProductId String?
+  quantity          Int     @default(1)
+  unitPrice         Float
+  totalPrice        Float
+
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  book            Book             @relation(fields: [bookId], references: [id])
+  physicalProduct PhysicalProduct? @relation(fields: [physicalProductId], references: [id])
+
+  @@map("order_items")
+}
+
+model Payment {
+  id              String          @id @default(cuid())
+  orderId         String?         @unique
+  subscriptionId  String?         @unique
+  userId          String
+  provider        PaymentProvider
+  providerRef     String          @unique // Paystack/Stripe reference
+  amount          Float
+  currency        String          @default("NGN")
+  status          PaymentStatus   @default(PENDING)
+  metadata        Json?
+  paidAt          DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  order        Order?        @relation(fields: [orderId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@map("payments")
+}
+
+model Subscription {
+  id             String             @id @default(cuid())
+  userId         String
+  status         SubscriptionStatus @default(ACTIVE)
+  planName       String             @default("Groove Pass")
+  amount         Float
+  currency       String             @default("NGN")
+  providerRef    String?            // Paystack subscription code
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt    DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment Payment?
+
+  @@map("subscriptions")
+}
+
+model ReadingProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  bookId      String
+  currentPage Int      @default(0)
+  totalPages  Int?
+  percentage  Float    @default(0)
+  completed   Boolean  @default(false)
+  lastReadAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+  @@map("reading_progress")
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  page      Int?
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId, page])
+  @@map("bookmarks")
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  imageUrl    String?
+  linkUrl     String?
+  isActive    Boolean  @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  promotions Promotion[]
+
+  @@map("campaigns")
+}
+
+model Promotion {
+  id           String   @id @default(cuid())
+  campaignId   String?
+  code         String   @unique
+  description  String?
+  discountType String   // 'percentage' | 'fixed'
+  discountValue Float
+  maxUses      Int?
+  usedCount    Int      @default(0)
+  minOrderValue Float?
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@map("promotions")
+}
+
+model MediaAsset {
+  id         String   @id @default(cuid())
+  name       String
+  url        String
+  fileType   String
+  fileSize   Int?
+  mimeType   String?
+  uploadedBy String?
+  usedIn     String?
+  createdAt  DateTime @default(now())
+
+  @@map("media_assets")
+}
+
+model AdminAction {
+  id           String          @id @default(cuid())
+  adminId      String
+  targetUserId String?
+  actionType   AdminActionType
+  entityType   String          // 'book', 'user', 'order', etc.
+  entityId     String?
+  description  String
+  metadata     Json?
+  createdAt    DateTime        @default(now())
+
+  admin      User  @relation("AdminUser", fields: [adminId], references: [id])
+  targetUser User? @relation("TargetUser", fields: [targetUserId], references: [id])
+
+  @@map("admin_actions")
+}
+
+model HomepageBanner {
+  id          String   @id @default(cuid())
+  title       String
+  subtitle    String?
+  imageUrl    String
+  mobileImageUrl String?
+  linkUrl     String?
+  linkText    String?
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("homepage_banners")
+}
