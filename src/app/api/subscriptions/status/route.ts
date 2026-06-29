@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { withAuth } from '@/lib/withAuth';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api';
 
-// GET /api/subscriptions/status
 export const GET = withAuth(async (_req: NextRequest, { user }) => {
   try {
     const subscription = await prisma.subscription.findFirst({
@@ -23,4 +22,3 @@ export const GET = withAuth(async (_req: NextRequest, { user }) => {
     return handleApiError(error);
   }
 });
-
