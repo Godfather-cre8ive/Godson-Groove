@@ -50,21 +50,29 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
     let discount = 0;
     if (validated.promoCode) {
       const promo = await prisma.promotion.findFirst({
-        where: {
-          code: validated.promoCode.toUpperCase(),
-          isActive: true,
-          OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }],
-          OR: [{ maxUses: null }, { usedCount: { lt: prisma.promotion.fields.maxUses } }],
-        },
-      });
+  where: {
+    code: validated.promoCode.toUpperCase(),
+    isActive: true,
+    OR: [
+      { expiresAt: null },
+      { expiresAt: { gte: new Date() } },
+    ],
+  },
+});
 
-      if (promo) {
-        if (promo.discountType === 'percentage') {
-          discount = (subtotal * promo.discountValue) / 100;
-        } else {
-          discount = Math.min(promo.discountValue, subtotal);
-        }
-      }
+if (
+  promo &&
+  (
+    promo.maxUses === null ||
+    promo.usedCount < promo.maxUses
+  )
+) {
+  if (promo.discountType === "percentage") {
+    discount = (subtotal * promo.discountValue) / 100;
+  } else {
+    discount = Math.min(promo.discountValue, subtotal);
+  }
+}    
     }
 
     const shippingFee = subtotal > 0 ? 1500 : 0; // NGN 1500 flat shipping
