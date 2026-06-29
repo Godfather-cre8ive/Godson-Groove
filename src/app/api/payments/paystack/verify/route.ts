@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { verifyPayment } from '@/lib/paystack';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api';
 
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
             currency: result.currency,
             status: 'SUCCESS',
             paidAt: new Date(),
-            metadata: metadata as Record<string, unknown>,
+            metadata: metadata as Prisma.InputJsonValue,
           },
         }),
         prisma.order.update({
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest) {
           currency: result.currency,
           status: 'SUCCESS',
           paidAt: new Date(),
-          metadata: metadata as Record<string, unknown>,
+          metadata: metadata as Prisma.InputJsonValue,
         },
       });
 
