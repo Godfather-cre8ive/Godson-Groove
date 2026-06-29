@@ -117,10 +117,10 @@ async function main() {
       categorySlug: 'animals',
     },
     {
-      title: 'Mama's Market Day',
+      title: "Mama's Market Day",
       slug: 'mamas-market-day',
-      description: 'On a bustling Saturday morning, Temi helps Mama at the market and learns the true value of hard work, counting, and community.',
-      shortDescription: 'A heartwarming day at the market with Mama.',
+      description: "On a bustling Saturday morning, Temi helps Mama at the market and learns the true value of hard work, counting, and community.",
+      shortDescription: "A heartwarming day at the market with Mama.",
       author: 'Funmi Adeyemi',
       coverImage: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&h=600&fit=crop',
       ageMin: 4, ageMax: 8,
