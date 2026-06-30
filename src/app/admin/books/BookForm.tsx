@@ -32,6 +32,7 @@ export default function BookForm({ bookId, initialData }: BookFormProps) {
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, unknown> | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
   const [savedBookId, setSavedBookId] = useState(bookId || '');
@@ -113,12 +114,16 @@ export default function BookForm({ bookId, initialData }: BookFormProps) {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to save');
+if (!res.ok) {
+  setFieldErrors(json.details || null);
+  throw new Error(json.error || 'Failed to save');
+}
       if (!isEdit) setSavedBookId(json.data.id);
       router.push('/admin/books');
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+  setError(err instanceof Error ? err.message : 'Save failed');
+  setFieldErrors(null);
     } finally {
       setLoading(false);
     }
@@ -127,8 +132,15 @@ export default function BookForm({ bookId, initialData }: BookFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm">⚠️ {error}</div>
-      )}
+  <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm">
+    <p className="font-semibold mb-1">⚠️ {error}</p>
+    {fieldErrors && Object.entries(fieldErrors).map(([field, errors]) => (
+      <p key={field} className="text-xs mt-0.5">
+        <strong>{field}:</strong> {(errors as string[]).join(', ')}
+      </p>
+    ))}
+  </div>
+)}
 
       <div className="bg-white rounded-2xl shadow-soft p-6 space-y-5">
         <h2 className="font-display font-bold text-brand-dark text-lg">Basic Information</h2>
