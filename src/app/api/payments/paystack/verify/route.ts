@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 import { verifyPayment } from '@/lib/paystack';
 import { successResponse, errorResponse, handleApiError } from '@/lib/api';
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
